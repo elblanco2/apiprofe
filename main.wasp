@@ -1,0 +1,205 @@
+app APIprofe {
+  wasp: {
+    version: "^0.11.0"
+  },
+  title: "APIprofe - Canvas API Teaching Resources",
+  head: [
+    "<meta charset=\"utf-8\">",
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+  ],
+  auth: {
+    userEntity: User,
+    methods: {
+      usernameAndPassword: {}
+    },
+    onAuthFailedRedirectTo: "/login"
+  },
+  db: {
+    prisma: {
+      clientPreviewFeatures: ["referentialIntegrity"]
+    }
+  },
+  dependencies: [
+    ("canvas-api-client", "^1.0.3"),
+    ("codemirror", "^6.0.1"),
+    ("@codemirror/lang-javascript", "^6.1.9"),
+    ("@tanstack/react-query", "^4.29.19"),
+    ("tailwindcss", "^3.3.2")
+  ]
+}
+
+// Entities (Database models)
+
+entity User {=psl
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  canvasTokens CanvasToken[]
+  contributions Resource[]
+psl=}
+
+entity CanvasToken {=psl
+  id        Int      @id @default(autoincrement())
+  name      String
+  token     String
+  domain    String
+  isActive  Boolean  @default(true)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+psl=}
+
+entity Resource {=psl
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  content     String
+  type        ResourceType
+  tags        String[]
+  difficulty  Difficulty
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  authorId    Int
+  author      User     @relation(fields: [authorId], references: [id])
+psl=}
+
+enum Role {=psl
+  USER
+  EDUCATOR
+  ADMIN
+psl=}
+
+enum ResourceType {=psl
+  TUTORIAL
+  SNIPPET
+  GUIDE
+  TOOL
+psl=}
+
+enum Difficulty {=psl
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+psl=}
+
+// Routes
+
+route RootRoute { path: "/", to: MainPage }
+route LoginRoute { path: "/login", to: LoginPage }
+route SignupRoute { path: "/signup", to: SignupPage }
+route ResourcesRoute { path: "/resources", to: ResourcesPage }
+route ResourceDetailsRoute { path: "/resources/:id", to: ResourceDetailsPage }
+route ProfileRoute { path: "/profile", to: ProfilePage }
+route CanvasTokensRoute { path: "/profile/canvas-tokens", to: CanvasTokensPage }
+route AddResourceRoute { path: "/resources/add", to: AddResourcePage }
+route EditResourceRoute { path: "/resources/:id/edit", to: EditResourcePage }
+
+// Pages
+
+page MainPage {
+  component: import Main from "@client/pages/Main"
+}
+
+page LoginPage {
+  component: import Login from "@client/pages/Login"
+}
+
+page SignupPage {
+  component: import Signup from "@client/pages/Signup"
+}
+
+page ResourcesPage {
+  component: import Resources from "@client/pages/Resources"
+}
+
+page ResourceDetailsPage {
+  component: import ResourceDetails from "@client/pages/ResourceDetails"
+}
+
+page ProfilePage {
+  authRequired: true,
+  component: import Profile from "@client/pages/Profile"
+}
+
+page CanvasTokensPage {
+  authRequired: true,
+  component: import CanvasTokens from "@client/pages/CanvasTokens"
+}
+
+page AddResourcePage {
+  authRequired: true,
+  component: import AddResource from "@client/pages/AddResource"
+}
+
+page EditResourcePage {
+  authRequired: true,
+  component: import EditResource from "@client/pages/EditResource"
+}
+
+// Actions
+
+action createResource {
+  fn: import { createResource } from "@server/actions.js",
+  entities: [Resource]
+}
+
+action updateResource {
+  fn: import { updateResource } from "@server/actions.js",
+  entities: [Resource]
+}
+
+action deleteResource {
+  fn: import { deleteResource } from "@server/actions.js",
+  entities: [Resource]
+}
+
+action createCanvasToken {
+  fn: import { createCanvasToken } from "@server/actions.js",
+  entities: [CanvasToken]
+}
+
+action deleteCanvasToken {
+  fn: import { deleteCanvasToken } from "@server/actions.js",
+  entities: [CanvasToken]
+}
+
+// Queries
+
+query getResources {
+  fn: import { getResources } from "@server/queries.js",
+  entities: [Resource]
+}
+
+query getResourceById {
+  fn: import { getResourceById } from "@server/queries.js",
+  entities: [Resource]
+}
+
+query getUserProfile {
+  fn: import { getUserProfile } from "@server/queries.js",
+  entities: [User]
+}
+
+query getCanvasTokens {
+  fn: import { getCanvasTokens } from "@server/queries.js",
+  entities: [CanvasToken]
+}
+
+// Jobs
+
+job syncCanvasData {
+  executor: PgBoss,
+  perform: {
+    fn: import { syncCanvasData } from "@server/jobs.js"
+  },
+  schedule: {
+    cron: "0 0 * * *" // Daily at midnight
+  }
+}
